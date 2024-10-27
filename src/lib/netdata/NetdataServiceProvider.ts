@@ -2,7 +2,7 @@ import axios, { AxiosResponse, Method } from 'axios';
 import { NodeDTO, ChartDTO } from '@/types/DTO/NetdataDtos';
 
 export default class NetdataServiceProvider {
-    private netdataUrl: string;
+    private readonly netdataUrl: string;
 
     constructor() {
         if (!process.env.NETDATA_URL) {
