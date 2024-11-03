@@ -8,7 +8,10 @@ export interface NodeDTO {
     hw: object;
     os: object;
     state: string;
-    health: object;
+    health: {
+        alerts: object;
+        status: string;
+    };
     capabilities: any[];
 }
 
@@ -33,4 +36,39 @@ export interface ChartDTO {
     alarms: object;
     chart_labels: object;
     functions: object;
+}
+
+export interface InstanceDTO {
+    id: string;
+    ni: object;
+    ds: object;
+    sts: {
+        min: number;
+        max: number;
+        avg: number;
+        con: number;
+    };
+}
+
+export interface DataDTO {
+    api: number;
+    versions: object;
+    summary: {
+        nodes: object[];
+        contexts: {
+            id: string;
+            is: object;
+            ds: object;
+            sts: {
+                min: number;
+                max: number;
+                avg: number;
+                con: number;
+            }[];
+        };
+        instances: InstanceDTO[];
+        dimensions: object[];
+        labels: object[];
+        alerts: never[]; // This might have something at some point
+    }
 }

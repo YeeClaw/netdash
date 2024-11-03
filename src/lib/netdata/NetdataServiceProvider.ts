@@ -1,14 +1,14 @@
-import axios, { AxiosResponse, Method } from 'axios';
-import { NodeDTO, ChartDTO } from '@/types/DTO/NetdataDtos';
+import axios, {AxiosError, AxiosResponse, Method} from 'axios';
+import {NodeDTO, ChartDTO, DataDTO, InstanceDTO} from '@/types/DTO/NetdataDtos';
 
 export default class NetdataServiceProvider {
     private readonly netdataUrl: string;
 
     constructor() {
-        if (!process.env.NETDATA_URL) {
+        if (!process.env.NEXT_PUBLIC_NETDATA_URL) {
             throw new Error('NETDATA_URL is not defined');
         }
-        this.netdataUrl = process.env.NETDATA_URL;
+        this.netdataUrl = process.env.NEXT_PUBLIC_NETDATA_URL;
     }
 
     /**
@@ -16,7 +16,8 @@ export default class NetdataServiceProvider {
      * @returns {NodeDTO} Node data (and what is really a promise)
      */
     async fetchNodesData(): Promise<NodeDTO> {
-        return this.fetchData('v2/nodes');
+        const data = await this.fetchApiData('v2/nodes');
+        return data.nodes[0];
     }
 
     /**
@@ -25,7 +26,23 @@ export default class NetdataServiceProvider {
      * @returns {ChartDTO} Chart data for the requested id
      */
     async fetchChart(chartId: string): Promise<ChartDTO> {
-        return this.fetchData('v1/chart', 'GET', { chart: chartId });
+        return this.fetchApiData('v1/chart', 'GET', { chart: chartId });
+    }
+
+    async fetchData(context: string, instance: string): Promise<DataDTO> {
+        const currentTime = new Date().getTime();
+        return this.fetchApiData('v2/data', 'GET', { contexts: context, instances: instance, timestamp: currentTime})
+    }
+
+    async fetchMinecraftServerProcess(): Promise<InstanceDTO | null> {
+        const response = await this.fetchData('app.cpu_utilization', 'app.mc-server_cpu_utilization');
+
+        for (const instance of response.summary.instances) {
+            if (instance.id === 'app.mc-server_cpu_utilization') {
+                return instance;
+            }
+        }
+        return null;
     }
 
     /**
@@ -37,10 +54,10 @@ export default class NetdataServiceProvider {
      * @param data Additional data to send with the request
      * @returns {Promise<T>} The data returned from the API
      */
-    private async fetchData(
+    private async fetchApiData(
         endpoint: string,
         method: Method = 'GET',
-        params?: Record<string, any>,
+        params?: Record<string, string | number>,
         data?: object
     ) {
         try {
@@ -50,10 +67,21 @@ export default class NetdataServiceProvider {
                 params,
                 data
             });
+            console.log(response);
             return response.data;
-        } catch (error) {
-            console.error(error);
-            return { message: 'Something went wrong!' };
+        } catch (error: unknown) {
+            if (error instanceof AxiosError) {
+                if (error.code === 'ERR_NETWORK') {
+                    console.log("Network error (likely timeout!)");
+                    return { health: { status: 'offline' }, nm: 'coltmini' };
+                } else {
+                    console.error('Axios error:', error);
+                    return { health: { status: 'offline' }, nm: 'coltmini' };
+                }
+            } else {
+                console.error('Error fetching data:', error);
+                return { health: { status: 'offline' }, nm: 'coltmini' };
+            }
         }
     }
 }
